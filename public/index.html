@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MSL AI — Medical Science Liaison</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #060c1a;
+      --surface:     #0d1526;
+      --surface2:    #111d35;
+      --border:      #1a2744;
+      --border2:     #243358;
+      --blue:        #3b82f6;
+      --blue-dark:   #1e3a8a;
+      --cyan:        #06b6d4;
+      --green:       #10b981;
+      --text:        #e2e8f0;
+      --text-muted:  #64748b;
+      --text-dim:    #94a3b8;
+      --red:         #ef4444;
+      --sidebar-w:   300px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Blobs ── */
+    .blob { position: fixed; border-radius: 50%; filter: blur(130px); pointer-events: none; z-index: 0; }
+    .blob-1 { width: 500px; height: 500px; background: #1e3a8a1a; top: -150px; right: -100px; }
+    .blob-2 { width: 380px; height: 380px; background: #06b6d410; bottom: -80px; left: -80px; }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 1.2rem; height: 58px;
+      background: #060c1acc; backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-left { display: flex; align-items: center; gap: 0.75rem; }
+    .nav-logo {
+      display: flex; align-items: center; gap: 0.55rem;
+      font-weight: 700; font-size: 0.95rem; color: var(--text); letter-spacing: -0.01em;
+    }
+    .logo-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--cyan); box-shadow: 0 0 10px var(--cyan);
+    }
+
+    .nav-right { display: flex; align-items: center; gap: 0.5rem; }
+
+    .lang-toggle {
+      display: flex; gap: 0.2rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 7px; padding: 0.18rem;
+    }
+    .lang-btn {
+      padding: 0.28rem 0.8rem; border: none; border-radius: 5px;
+      font-size: 0.75rem; font-weight: 600; cursor: pointer;
+      background: transparent; color: var(--text-muted);
+      transition: all 0.15s; font-family: inherit;
+    }
+    .lang-btn.active { background: var(--blue); color: #fff; }
+
+    .nav-icon-btn {
+      display: flex; align-items: center; gap: 0.35rem;
+      padding: 0.32rem 0.8rem; border: 1px solid var(--border);
+      border-radius: 7px; font-size: 0.75rem; font-weight: 500;
+      background: var(--surface); color: var(--text-dim);
+      cursor: pointer; transition: all 0.15s; font-family: inherit;
+    }
+    .nav-icon-btn:hover { border-color: var(--border2); color: var(--text); }
+    .nav-icon-btn.active { border-color: var(--blue-dark); color: #93c5fd; background: #1e3a8a18; }
+
+    /* ── Layout ── */
+    .layout {
+      position: relative; z-index: 1;
+      display: flex; min-height: 100vh;
+      padding-top: 58px;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: fixed; top: 58px; left: 0; bottom: 0;
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      transform: translateX(-100%);
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 150;
+      overflow: hidden;
+    }
+    .sidebar.open { transform: translateX(0); }
+
+    .sidebar-header {
+      padding: 1rem 1.1rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-header h3 { font-size: 0.8rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+    .sidebar-header p  { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+    .sidebar-list {
+      flex: 1; overflow-y: auto; padding: 0.6rem;
+      scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
+      display: flex; flex-direction: column; gap: 0.45rem;
+    }
+
+    .sidebar-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.75rem 0.9rem;
+      cursor: default; transition: border-color 0.15s;
+      animation: msg-in 0.2s ease;
+    }
+    .sidebar-card:hover { border-color: var(--border2); }
+
+    .sc-meta {
+      display: flex; align-items: center; gap: 0.4rem;
+      margin-bottom: 0.45rem; flex-wrap: wrap;
+    }
+    .sc-date { font-size: 0.72rem; font-weight: 600; color: var(--text); }
+    .sc-badge {
+      font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; padding: 0.1rem 0.4rem; border-radius: 4px;
+    }
+    .badge-en { background: #1e3a8a25; color: #93c5fd; border: 1px solid #1e3a8a50; }
+    .badge-es { background: #14532d25; color: #86efac; border: 1px solid #14532d50; }
+    .sc-dur  { font-size: 0.68rem; color: var(--text-muted); margin-left: auto; }
+
+    .sc-preview {
+      font-size: 0.73rem; color: var(--text-muted); line-height: 1.5;
+      white-space: pre-wrap;
+      max-height: 60px; overflow: hidden;
+      -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+      mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+      margin-bottom: 0.55rem;
+    }
+
+    .sc-actions { display: flex; gap: 0.35rem; }
+    .sc-btn {
+      flex: 1; padding: 0.3rem 0; border-radius: 6px;
+      border: 1px solid var(--border); font-size: 0.68rem; font-weight: 600;
+      background: var(--surface); color: var(--text-dim);
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+      text-align: center;
+    }
+    .sc-btn:hover { border-color: var(--border2); color: var(--text); }
+    .sc-btn.dl { background: #1e3a8a18; border-color: #1e3a8a50; color: #93c5fd; }
+    .sc-btn.dl:hover { background: #1e3a8a30; }
+
+    .sidebar-empty {
+      padding: 2rem 1rem; text-align: center;
+      color: var(--text-muted); font-size: 0.78rem;
+    }
+    .sidebar-empty .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
+    /* Sidebar overlay for mobile */
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0; z-index: 140;
+      background: #00000060; backdrop-filter: blur(2px);
+    }
+    .sidebar-overlay.show { display: block; }
+
+    /* ── Main content shifts when sidebar opens ── */
+    .main {
+      flex: 1; transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 60px 1.5rem 2rem; gap: 1.4rem;
+      min-width: 0;
+    }
+    .layout.sidebar-open .main { margin-left: var(--sidebar-w); }
+
+    /* ── Hero ── */
+    .hero { text-align: center; }
+    .hero h1 {
+      font-size: 1.75rem; font-weight: 700; letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero p { margin-top: 0.3rem; font-size: 0.78rem; color: var(--text-muted); }
+
+    /* ── Orb ── */
+    .orb-wrapper { position: relative; width: 130px; height: 130px; flex-shrink: 0; }
+
+    .orb-ring {
+      position: absolute; inset: -14px; border-radius: 50%;
+      border: 1px solid #06b6d420;
+      animation: spin-slow 8s linear infinite; opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .orb-ring::before {
+      content: ''; position: absolute; top: -3px; left: 50%;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--cyan); box-shadow: 0 0 8px var(--cyan);
+      transform: translateX(-50%);
+    }
+    .orb-ring.active { opacity: 1; }
+    @keyframes spin-slow { to { transform: rotate(360deg); } }
+
+    .orb {
+      width: 130px; height: 130px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #1d4ed8, #0c2456 60%, #060c1a);
+      box-shadow: 0 0 40px #1d4ed830, inset 0 1px 0 #ffffff15;
+      transition: all 0.3s ease;
+    }
+    .orb.speaking {
+      animation: orb-pulse 0.7s ease-in-out infinite alternate;
+      background: radial-gradient(circle at 35% 30%, #06b6d4, #0e7490 55%, #060c1a);
+    }
+    .orb.listening {
+      animation: orb-breathe 1.6s ease-in-out infinite alternate;
+      background: radial-gradient(circle at 35% 30%, #3b82f6, #1e3a8a 55%, #060c1a);
+    }
+    @keyframes orb-pulse {
+      from { transform: scale(1);   box-shadow: 0 0 40px #06b6d440; }
+      to   { transform: scale(1.1); box-shadow: 0 0 90px #06b6d465; }
+    }
+    @keyframes orb-breathe {
+      from { transform: scale(0.97); box-shadow: 0 0 30px #3b82f630; }
+      to   { transform: scale(1.03); box-shadow: 0 0 60px #3b82f650; }
+    }
+
+    /* ── Status / thinking ── */
+    #status { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); min-height: 1em; }
+    .thinking { display: none; align-items: center; gap: 0.5rem; font-size: 0.72rem; color: var(--cyan); letter-spacing: 0.04em; }
+    .thinking.active { display: flex; }
+    .thinking-dots span {
+      display: inline-block; width: 4px; height: 4px; border-radius: 50%;
+      background: var(--cyan); animation: dot-b 1.2s ease-in-out infinite;
+    }
+    .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot-b { 0%,80%,100%{transform:scale(0.5);opacity:.3}40%{transform:scale(1);opacity:1} }
+
+    /* ── Transcript ── */
+    #transcript {
+      width: 100%; max-width: 560px;
+      min-height: 160px; max-height: 270px; overflow-y: auto;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1rem 1.1rem;
+      display: flex; flex-direction: column; gap: 0.7rem;
+      scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
+    }
+    .msg { display: flex; flex-direction: column; gap: 0.12rem; animation: msg-in 0.2s ease; }
+    @keyframes msg-in { from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none} }
+    .msg .role { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+    .msg.assistant .role { color: var(--cyan); }
+    .msg.user .role      { color: var(--green); }
+    .msg .text { font-size: 0.855rem; line-height: 1.65; color: var(--text); }
+
+    /* ── Text input ── */
+    .text-input-wrap {
+      width: 100%; max-width: 560px;
+      display: none; gap: 0.45rem; align-items: flex-end;
+    }
+    .text-input-wrap.visible { display: flex; }
+    #text-input {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 11px; padding: 0.6rem 0.95rem;
+      color: var(--text); font-family: inherit; font-size: 0.855rem;
+      resize: none; max-height: 100px; line-height: 1.5;
+      transition: border-color 0.15s; outline: none;
+    }
+    #text-input::placeholder { color: var(--text-muted); }
+    #text-input:focus { border-color: var(--border2); }
+    #btn-send {
+      flex-shrink: 0; width: 38px; height: 38px;
+      background: var(--blue); border: none; border-radius: 9px;
+      color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 0.95rem; transition: background 0.15s, transform 0.1s;
+    }
+    #btn-send:hover { background: #2563eb; }
+    #btn-send:active { transform: scale(0.95); }
+    #btn-send:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Call controls ── */
+    .controls { display: flex; gap: 0.65rem; }
+    .ctrl-btn {
+      padding: 0.58rem 1.7rem; border: none; border-radius: 9px;
+      font-size: 0.86rem; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: all 0.15s;
+    }
+    .ctrl-btn:active { transform: scale(0.97); }
+    .ctrl-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    #btn-start { background: var(--blue); color: #fff; }
+    #btn-start:hover:not(:disabled) { background: #2563eb; box-shadow: 0 0 20px #3b82f640; }
+    #btn-stop  { background: #1a1a2e; border: 1px solid #3f1818; color: #fca5a5; }
+    #btn-stop:hover:not(:disabled)  { background: #7f1d1d25; border-color: var(--red); }
+
+    /* ── PDF button ── */
+    #btn-pdf {
+      display: none; align-items: center; gap: 0.45rem;
+      padding: 0.52rem 1.3rem; border: 1px solid #14532d;
+      border-radius: 9px; background: #14532d18;
+      color: #86efac; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all 0.2s;
+      animation: fade-up 0.3s ease;
+    }
+    #btn-pdf.visible { display: flex; }
+    #btn-pdf:hover { background: #14532d35; border-color: #16a34a; }
+    @keyframes fade-up { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none} }
+
+    footer { font-size: 0.68rem; color: #1e293b; }
+  </style>
+</head>
+<body>
+
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+
+  <!-- Sidebar overlay -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <!-- ── History Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h3>Call History</h3>
+      <p id="sb-sub">Past MSL interactions</p>
+    </div>
+    <div class="sidebar-list" id="sidebar-list">
+      <div class="sidebar-empty"><div class="icon">📋</div><p>No calls yet</p></div>
+    </div>
+  </aside>
+
+  <!-- ── Nav ── -->
+  <nav>
+    <div class="nav-left">
+      <button class="nav-icon-btn" id="btn-toggle-sidebar" onclick="toggleSidebar()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        History
+      </button>
+      <div class="nav-logo">
+        <div class="logo-dot"></div>
+        MSL AI
+      </div>
+    </div>
+    <div class="nav-right">
+      <div class="lang-toggle">
+        <button class="lang-btn active" id="btn-en" onclick="setLang('en')">🇺🇸 EN</button>
+        <button class="lang-btn"        id="btn-es" onclick="setLang('es')">🇲🇽 ES</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Main layout ── -->
+  <div class="layout" id="layout">
+    <div class="main" id="main">
+
+      <div class="hero">
+        <h1 id="hero-title">Medical Science Liaison AI</h1>
+        <p id="hero-sub">Powered by Vapi · Groq Llama 3.3 · ElevenLabs</p>
+      </div>
+
+      <div class="orb-wrapper">
+        <div class="orb-ring" id="orb-ring"></div>
+        <div class="orb"      id="orb"></div>
+      </div>
+
+      <div id="status">Ready</div>
+
+      <div class="thinking" id="thinking">
+        <div class="thinking-dots"><span></span><span></span><span></span></div>
+        <span id="thinking-label">Searching clinical database…</span>
+      </div>
+
+      <div id="transcript">
+        <div class="msg assistant">
+          <span class="role">MSL AI</span>
+          <span class="text" id="hint-text">Click "Start Call" to begin.</span>
+        </div>
+      </div>
+
+      <div class="text-input-wrap" id="text-input-wrap">
+        <textarea id="text-input" rows="1" placeholder="Type a message instead of speaking…"></textarea>
+        <button id="btn-send">&#10148;</button>
+      </div>
+
+      <div class="controls">
+        <button class="ctrl-btn" id="btn-start">Start Call</button>
+        <button class="ctrl-btn" id="btn-stop"  disabled>End Call</button>
+      </div>
+
+      <button id="btn-pdf" onclick="downloadPdf()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Summary PDF
+      </button>
+
+      <footer>Microphone access required · Chrome / Edge recommended</footer>
+    </div>
+  </div>
+
+  <script src="/vapi.bundle.js"></script>
+  <script>
+    const Vapi = window.Vapi;
+
+    const orb       = document.getElementById('orb');
+    const orbRing   = document.getElementById('orb-ring');
+    const statusEl  = document.getElementById('status');
+    const txEl      = document.getElementById('transcript');
+    const btnStart  = document.getElementById('btn-start');
+    const btnStop   = document.getElementById('btn-stop');
+    const hintText  = document.getElementById('hint-text');
+    const textInput = document.getElementById('text-input');
+    const btnSend   = document.getElementById('btn-send');
+    const textWrap  = document.getElementById('text-input-wrap');
+    const btnPdf    = document.getElementById('btn-pdf');
+    const layout    = document.getElementById('layout');
+    const sidebar   = document.getElementById('sidebar');
+    const overlay   = document.getElementById('sidebar-overlay');
+    const btnToggle = document.getElementById('btn-toggle-sidebar');
+
+    let vapi         = null;
+    let currentLang  = 'en';
+    let appConfig    = null;
+    let lastCallData = null;
+    let historyCache = []; // stored calls for sidebar PDF buttons
+
+    // ── Sidebar ──────────────────────────────────────────────────────────────
+    function toggleSidebar() {
+      const open = sidebar.classList.toggle('open');
+      layout.classList.toggle('sidebar-open', open);
+      overlay.classList.toggle('show', open);
+      btnToggle.classList.toggle('active', open);
+      if (open) loadHistory();
+    }
+    function closeSidebar() {
+      sidebar.classList.remove('open');
+      layout.classList.remove('sidebar-open');
+      overlay.classList.remove('show');
+      btnToggle.classList.remove('active');
+    }
+
+    // ── History ───────────────────────────────────────────────────────────────
+    async function loadHistory() {
+      const list = document.getElementById('sidebar-list');
+      list.innerHTML = '<div class="sidebar-empty"><div class="icon">⏳</div><p>Loading…</p></div>';
+      try {
+        const calls = await fetch('/api/calls').then(r => r.json());
+        if (!calls.length) {
+          list.innerHTML = '<div class="sidebar-empty"><div class="icon">📋</div><p>No calls yet</p></div>';
+          return;
+        }
+        historyCache = calls;
+        list.innerHTML = '';
+        calls.forEach((call, idx) => {
+          const d   = new Date(call.started_at);
+          const dt  = d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const dur = fmtDur(call.duration_s);
+          const lang = call.language || 'en';
+          const preview = (call.summary || 'No summary.').replace(/\*\*/g, '').slice(0, 130);
+          const card = document.createElement('div');
+          card.className = 'sidebar-card';
+          card.innerHTML = `
+            <div class="sc-meta">
+              <span class="sc-date">${dt}</span>
+              <span class="sc-badge badge-${lang}">${lang === 'es' ? '🇲🇽 ES' : '🇺🇸 EN'}</span>
+              <span class="sc-dur">${dur}</span>
+            </div>
+            <div class="sc-preview">${preview}</div>
+            <div class="sc-actions">
+              <button class="sc-btn dl" data-idx="${idx}">⬇ PDF</button>
+            </div>`;
+          card.querySelector('[data-idx]').addEventListener('click', () => downloadHistPdf(historyCache[idx]));
+          list.appendChild(card);
+        });
+      } catch (_) {
+        list.innerHTML = '<div class="sidebar-empty"><div class="icon">⚠️</div><p>Error loading</p></div>';
+      }
+    }
+
+    function fmtDur(s) {
+      if (!s) return '—';
+      const secs = Math.round(s);
+      return `${Math.floor(secs / 60)}m ${secs % 60}s`;
+    }
+
+    // ── PDF generation (pdfmake) ──────────────────────────────────────────────
+    /**
+     * Convert Groq markdown summary to pdfmake content array.
+     * Handles: **bold**, numbered section headers "1. **Title**", bullet "- item"
+     */
+    function mdToPdf(text) {
+      const result = [];
+      const lines  = (text || '').split('\n');
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line) { result.push({ text: '', margin: [0, 4] }); continue; }
+
+        // "1. **Section Title**" or "1. Section Title"
+        const secMatch = line.match(/^(\d+)\.\s+\*\*(.+?)\*\*\s*$/);
+        if (secMatch) {
+          result.push({ text: secMatch[1] + '.  ' + secMatch[2], style: 'section', margin: [0, 10, 0, 3] });
+          continue;
+        }
+
+        // Bullet "- text" or "• text"
+        const bMatch = line.match(/^[-•]\s+(.+)/);
+        if (bMatch) {
+          result.push({ text: [{ text: '  •  ', color: '#3b82f6' }, ...inlineMd(bMatch[1])], style: 'bullet', margin: [8, 1.5, 0, 1.5] });
+          continue;
+        }
+
+        // Generic line
+        result.push({ text: inlineMd(line), style: 'body', margin: [0, 1.5] });
+      }
+      return result;
+    }
+
+    /** Convert inline **bold** to pdfmake inline stack */
+    function inlineMd(text) {
+      const parts = text.split(/\*\*(.+?)\*\*/);
+      if (parts.length === 1) return [{ text, color: '#cbd5e1' }];
+      return parts.map((p, i) =>
+        i % 2 === 0
+          ? { text: p, color: '#cbd5e1' }
+          : { text: p, bold: true, color: '#e2e8f0' }
+      );
+    }
+
+    function buildPdfDef(data) {
+      const { transcript, summary, date, duration, lang } = data;
+      const isEs = lang === 'es';
+
+      // Build transcript content
+      const txLines = (transcript || '').split('\n');
+      const txContent = [];
+      for (const line of txLines) {
+        if (!line.trim()) continue;
+        const isMsl = line.startsWith('MSL AI:');
+        const isDoc = line.startsWith('Doctor:');
+        if (isMsl || isDoc) {
+          const [speaker, ...rest] = line.split(':');
+          txContent.push({
+            columns: [
+              { text: speaker.trim(), width: 52, bold: true, fontSize: 8,
+                color: isMsl ? '#67e8f9' : '#6ee7b7' },
+              { text: rest.join(':').trim(), fontSize: 8.5, color: '#cbd5e1', lineHeight: 1.5 },
+            ],
+            columnGap: 8,
+            margin: [0, 3],
+          });
+        } else {
+          txContent.push({ text: line, fontSize: 8.5, color: '#94a3b8', margin: [0, 2] });
+        }
+      }
+
+      return {
+        pageSize: 'A4',
+        pageMargins: [48, 72, 48, 56],
+        background: (page, size) => ({
+          canvas: [{ type: 'rect', x: 0, y: 0, w: size.width, h: size.height, color: '#060c1a' }],
+        }),
+        header: {
+          margin: [48, 18, 48, 0],
+          columns: [
+            {
+              stack: [
+                { text: 'MSL AI', fontSize: 15, bold: true, color: '#e2e8f0', characterSpacing: -0.4 },
+                { text: 'Medical Science Liaison · Confidential', fontSize: 7.5, color: '#475569', margin: [0, 2, 0, 0] },
+              ],
+            },
+            {
+              text: isEs ? 'Resumen de Llamada' : 'Call Summary',
+              alignment: 'right', fontSize: 8, color: '#3b82f6', bold: true,
+              margin: [0, 4, 0, 0],
+            },
+          ],
+        },
+        footer: (page, pages) => ({
+          margin: [48, 8, 48, 0],
+          columns: [
+            { text: 'MSL AI · Confidential', fontSize: 7, color: '#1e3a8a' },
+            { text: `Page ${page} of ${pages}`, alignment: 'right', fontSize: 7, color: '#1e3a8a' },
+          ],
+        }),
+        content: [
+          // ── Divider after header ──
+          { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 499, y2: 0, lineWidth: 0.5, lineColor: '#1e3a8a' }], margin: [0, 0, 0, 16] },
+
+          // ── Metadata ──
+          { text: isEs ? 'Detalles de la Llamada' : 'Call Details', style: 'heading' },
+          { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 499, y2: 0, lineWidth: 0.3, lineColor: '#1e3a8a50' }], margin: [0, 4, 0, 8] },
+          {
+            table: {
+              widths: [70, '*'],
+              body: [
+                [
+                  { text: isEs ? 'Fecha' : 'Date', style: 'metaKey' },
+                  { text: date, style: 'metaVal' },
+                ],
+                [
+                  { text: isEs ? 'Duración' : 'Duration', style: 'metaKey' },
+                  { text: duration, style: 'metaVal' },
+                ],
+                [
+                  { text: isEs ? 'Idioma' : 'Language', style: 'metaKey' },
+                  { text: isEs ? 'Español' : 'English', style: 'metaVal' },
+                ],
+              ],
+            },
+            layout: 'noBorders',
+            margin: [0, 0, 0, 20],
+          },
+
+          // ── Summary ──
+          { text: isEs ? 'Resumen de la Llamada' : 'Call Summary', style: 'heading' },
+          { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 499, y2: 0, lineWidth: 0.3, lineColor: '#1e3a8a50' }], margin: [0, 4, 0, 10] },
+          ...mdToPdf(summary),
+
+          // ── Transcript ──
+          { text: '', pageBreak: 'before' },
+          { text: isEs ? 'Transcripción Completa' : 'Full Transcript', style: 'heading' },
+          { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 499, y2: 0, lineWidth: 0.3, lineColor: '#1e3a8a50' }], margin: [0, 4, 0, 10] },
+          ...txContent,
+        ],
+        styles: {
+          heading:  { fontSize: 10.5, bold: true, color: '#3b82f6', margin: [0, 0, 0, 0] },
+          section:  { fontSize: 9.5, bold: true, color: '#93c5fd' },
+          bullet:   { fontSize: 8.5, color: '#cbd5e1', lineHeight: 1.5 },
+          body:     { fontSize: 8.5, color: '#94a3b8', lineHeight: 1.5 },
+          metaKey:  { fontSize: 8.5, bold: true, color: '#64748b', margin: [0, 2, 0, 2] },
+          metaVal:  { fontSize: 8.5, color: '#cbd5e1', margin: [0, 2, 0, 2] },
+        },
+        defaultStyle: { font: 'Roboto' },
+      };
+    }
+
+    function downloadPdf() {
+      if (!lastCallData) return;
+      const def  = buildPdfDef(lastCallData);
+      const date = new Date().toISOString().slice(0, 10);
+      pdfMake.createPdf(def).download(`msl-call-${date}.pdf`);
+    }
+
+    function downloadHistPdf(call) {
+      const data = {
+        transcript: call.transcript || '',
+        summary:    call.summary    || '',
+        date:       new Date(call.started_at).toLocaleString(),
+        duration:   fmtDur(call.duration_s),
+        lang:       call.language || 'en',
+      };
+      pdfMake.createPdf(buildPdfDef(data)).download(`msl-call-${new Date(call.started_at).toISOString().slice(0,10)}.pdf`);
+    }
+
+    // ── Language ──────────────────────────────────────────────────────────────
+    const UI = {
+      en: { start:'Start Call', end:'End Call', hint:'Click "Start Call" to begin.', ready:'Ready', connecting:'Initialising…', speaking:'AI speaking…', listening:'Listening…', ended:'Call ended', searching:'Searching clinical database…' },
+      es: { start:'Iniciar llamada', end:'Terminar', hint:'Haz clic en "Iniciar llamada" para comenzar.', ready:'Listo', connecting:'Iniciando…', speaking:'IA hablando…', listening:'Escuchando…', ended:'Llamada terminada', searching:'Consultando base de datos clínicos…' },
+    };
+
+    const LANG_OVERRIDES = { es: {
+      firstMessage: 'Buenos días, Doctor. Soy su representante de Ciencias Médicas. Me gustaría conocer su experiencia reciente con nuestro nuevo tratamiento. Podría compartir sus observaciones clínicas hasta ahora.',
+      endCallMessage: 'Muchas gracias por su tiempo, Doctor. Haré el seguimiento con la información solicitada. Que tenga un excelente día.',
+      transcriberLanguage: 'es',
+      voice: { provider:'11labs', voiceId:'EXAVITQu4vr4xnSDxMaL', model:'eleven_multilingual_v2', stability:0.5, similarityBoost:0.75 },
+      systemPrompt: `Eres un Medical Science Liaison de IA representando a una compañía farmacéutica.
+Tu rol es mantener un diálogo científico profesional, clínico y conciso con médicos licenciados.
+Responde SIEMPRE en español.
+
+EVIDENCIA CLÍNICA DISPONIBLE (cítala cuando sea relevante, con lenguaje natural):
+
+[EFICACIA] Un ensayo de fase III de 2024 en el New England Journal of Medicine (n=1,240) mostró una reducción del 34% en hemoglobina glucosilada versus placebo en 24 semanas.
+[NÁUSEAS] Un estudio de 2023 en Alimentary Pharmacology and Therapeutics encontró náuseas en el 8.3% de los pacientes versus 3.1% en el grupo placebo. Típicamente leves y autoresolutivas en 7 días.
+[METFORMINA] Un estudio de 2024 en Clinical Pharmacology and Therapeutics: no hay interacción farmacocinética clínicamente significativa con metformina 500-2000 mg/día.
+[IBUPROFENO] Un estudio de 2024 en el British Journal of Clinical Pharmacology: no hay interacción significativa con ibuprofeno 400-800 mg. No requiere ajuste de dosis.
+[INSUFICIENCIA RENAL] Un estudio de 2024 en el American Journal of Kidney Diseases: reducir dosis 50% cuando la filtración está entre 15-29 mL/min. Contraindicado por debajo de 15 mL/min.
+[PACIENTES MAYORES] Un estudio de 2023 en el Journal of Gerontology: no hubo diferencia en eventos adversos en pacientes ≥65 años con comorbilidades.
+[HIPERTENSIÓN] Un análisis de 2023 en el Journal of Hypertension: eficacia consistente en hipertensos sin efectos sobre la presión arterial.
+[DOSIFICACIÓN] Guía 2024: 10 mg una vez al día. Reducir a 5 mg en ≥75 años o insuficiencia renal moderada.
+
+ESTRUCTURA DE RESPUESTA: 1) Responde directamente citando la evidencia. 2) Haz UNA pregunta de seguimiento.
+PROHIBIDO: "un momento", "dame un momento", "espera un segundo".
+LÍMITES: Máximo 65 palabras. Nunca inventes datos clínicos.`,
+    }};
+
+    function setLang(lang) {
+      if (vapi) return;
+      currentLang = lang;
+      const ui = UI[lang];
+      document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+      document.getElementById('btn-es').classList.toggle('active', lang === 'es');
+      btnStart.textContent = ui.start;
+      btnStop.textContent  = ui.end;
+      hintText.textContent = ui.hint;
+      textInput.placeholder = lang === 'es' ? 'Escribe un mensaje en lugar de hablar…' : 'Type a message instead of speaking…';
+      document.getElementById('hero-title').textContent = lang === 'es' ? 'Agente de Ciencias Médicas IA' : 'Medical Science Liaison AI';
+      document.getElementById('sb-sub').textContent = lang === 'es' ? 'Interacciones MSL anteriores' : 'Past MSL interactions';
+      setStatus(ui.ready);
+    }
+
+    function setStatus(t) { statusEl.textContent = t; }
+    function setOrbState(s) {
+      orb.classList.remove('speaking','listening');
+      orbRing.classList.remove('active');
+      if (s) { orb.classList.add(s); orbRing.classList.add('active'); }
+    }
+
+    function appendMessage(role, text) {
+      const label = role === 'assistant' ? 'MSL AI' : 'Doctor';
+      const div = document.createElement('div');
+      div.className = `msg ${role}`;
+      div.innerHTML = `<span class="role">${label}</span><span class="text">${text}</span>`;
+      txEl.appendChild(div);
+      txEl.scrollTop = txEl.scrollHeight;
+    }
+
+    // ── Text input ────────────────────────────────────────────────────────────
+    function sendTyped() {
+      const text = textInput.value.trim();
+      if (!text || !vapi) return;
+      vapi.send({ type: 'add-message', message: { role: 'user', content: text } });
+      appendMessage('user', text);
+      textInput.value = '';
+      textInput.style.height = 'auto';
+    }
+    btnSend.addEventListener('click', sendTyped);
+    textInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTyped(); } });
+    textInput.addEventListener('input', () => { textInput.style.height = 'auto'; textInput.style.height = Math.min(textInput.scrollHeight, 100) + 'px'; });
+
+    // ── Config ────────────────────────────────────────────────────────────────
+    async function getConfig() {
+      if (appConfig) return appConfig;
+      appConfig = await fetch('/api/config').then(r => r.json());
+      return appConfig;
+    }
+    function buildOverrides() {
+      if (currentLang === 'en') return {};
+      const ov = LANG_OVERRIDES[currentLang];
+      return { firstMessage: ov.firstMessage, endCallMessage: ov.endCallMessage,
+        transcriber: { provider:'deepgram', model:'nova-2', language: ov.transcriberLanguage },
+        voice: ov.voice,
+        model: { provider:'groq', model:'llama-3.3-70b-versatile', temperature:0.2,
+          messages:[{ role:'system', content: ov.systemPrompt }] },
+      };
+    }
+
+    // ── Call ──────────────────────────────────────────────────────────────────
+    async function startCall() {
+      const ui = UI[currentLang];
+      setStatus(ui.connecting);
+      btnStart.disabled = true;
+      btnPdf.classList.remove('visible');
+      lastCallData = null;
+
+      const cfg = await getConfig();
+      if (cfg.error) { setStatus('Config error'); btnStart.disabled = false; return; }
+
+      const vi = new Vapi(cfg.vapiPublicKey);
+
+      const thinkEl = document.getElementById('thinking');
+      const thinkLb = document.getElementById('thinking-label');
+      function showThinking(v) {
+        thinkEl.classList.toggle('active', v);
+        if (v) thinkLb.textContent = UI[currentLang].searching;
+      }
+
+      vi.on('call-start', () => {
+        setStatus(ui.connected || 'Connected'); setOrbState('listening');
+        btnStop.disabled = false; btnSend.disabled = false;
+        txEl.innerHTML = ''; textWrap.classList.add('visible'); showThinking(false);
+      });
+
+      vi.on('call-end', async () => {
+        setStatus(ui.ended); setOrbState(null);
+        btnStart.disabled = false; btnStop.disabled = true; btnSend.disabled = true;
+        textWrap.classList.remove('visible');
+        vapi = null;
+
+        // Build transcript from DOM for fallback
+        const domTx = Array.from(txEl.querySelectorAll('.msg')).map(m => {
+          const role = m.classList.contains('assistant') ? 'MSL AI' : 'Doctor';
+          return `${role}: ${m.querySelector('.text')?.textContent || ''}`;
+        }).join('\n');
+
+        setTimeout(async () => {
+          try {
+            const calls  = await fetch('/api/calls').then(r => r.json());
+            const latest = calls[0];
+            const tx     = (latest?.transcript?.trim().length > 30) ? latest.transcript : domTx;
+            let summary  = latest?.summary || '';
+
+            // Re-generate summary if server had no transcript (text-input calls, very short calls)
+            const summaryUseless = !summary || summary.includes('Not discussed') || summary.includes('no transcript') || summary.length < 80;
+            if (summaryUseless && tx.trim().length > 30) {
+              try {
+                const r = await fetch('/api/summarize', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ transcript: tx, lang: currentLang }),
+                });
+                summary = (await r.json()).summary || summary;
+              } catch (_) {}
+            }
+
+            lastCallData = {
+              transcript: tx,
+              summary,
+              date:     latest ? new Date(latest.started_at).toLocaleString() : new Date().toLocaleString(),
+              duration: fmtDur(latest?.duration_s),
+              lang:     latest?.language || currentLang,
+            };
+            btnPdf.classList.add('visible');
+            if (sidebar.classList.contains('open')) loadHistory();
+          } catch (_) {}
+        }, 5000);
+      });
+
+      let thinkTimer = null, lastSpeaker = null;
+      vi.on('speech-start', ev => {
+        clearTimeout(thinkTimer); showThinking(false);
+        lastSpeaker = ev?.role || 'assistant';
+        const isMsl = lastSpeaker === 'assistant';
+        setStatus(isMsl ? ui.speaking : ui.listening);
+        setOrbState(isMsl ? 'speaking' : 'listening');
+      });
+      vi.on('speech-end', ev => {
+        const who = ev?.role || lastSpeaker;
+        setStatus(ui.listening); setOrbState('listening');
+        if (who === 'user') thinkTimer = setTimeout(() => showThinking(true), 300);
+      });
+      vi.on('message', msg => {
+        if (msg.type === 'function-call' || msg.type === 'tool-calls') showThinking(true);
+        if (msg.type === 'transcript' && msg.transcriptType === 'final') {
+          showThinking(false); appendMessage(msg.role, msg.transcript);
+        }
+      });
+      vi.on('error', err => {
+        console.error('[vapi]', err);
+        setStatus(`Error: ${err.message || JSON.stringify(err)}`);
+        setOrbState(null);
+        btnStart.disabled = false; btnStop.disabled = true;
+        textWrap.classList.remove('visible'); vapi = null;
+      });
+
+      vapi = vi;
+      await vi.start(cfg.assistantId, buildOverrides());
+    }
+
+    btnStart.addEventListener('click', startCall);
+    btnStop.addEventListener('click', () => { if (vapi) vapi.stop(); });
+
+    setLang('en');
+  </script>
+</body>
+</html>
