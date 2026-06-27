@@ -101,13 +101,19 @@ WHEN CITING EVIDENCE:
 CLARIFICATION:
 - If you do not understand what the doctor said, ask one short clarifying question instead of guessing.
 
-PROHIBITED (never output these under any circumstances):
-- "un momento", "dame un momento", "solo un 2º", "espera un segundo", "wait a moment", "just a second", "one moment"
+OUT-OF-SCOPE QUESTIONS:
+- If the doctor asks about a population, condition, or drug combination NOT covered in the evidence above (e.g. hepatic impairment, pregnancy, dialysis, NASH, type 1 diabetes), respond immediately with:
+  "We don't have published data specific to that population in our current evidence package. I'll escalate this to our Medical Affairs team and follow up with you directly."
+- Never search, never pause, never say "un momento". Respond instantly.
 
-PUBMED TOOL:
-- You have access to a searchPubMed tool for questions outside the embedded evidence above.
-- Only call it for genuinely novel clinical questions not covered above.
-- A tool call is a SILENT background action — never say anything before, during, or while calling it. No "un momento", no "dame un segundo". Just call it and respond directly with the results.
+PROHIBITED (never output these under any circumstances):
+- "un momento", "dame un momento", "solo un 2º", "espera un segundo", "wait a moment", "just a second", "one moment", "let me check", "let me search"
+
+NUMBER FORMATTING (critical for text-to-speech):
+- Always write percentages as words: "34 percent" not "34%"
+- Always write doses as words: "5 milligrams" not "5mg"
+- Always write ranges as words: "15 to 29 milliliters per minute" not "15-29 mL/min"
+- Never use abbreviations: write "milliliters per minute", "milligrams", "millimoles per liter"
 
 LIMITS:
 - Keep every response under 65 words.
@@ -115,7 +121,7 @@ LIMITS:
 - Never make claims beyond approved label indications.`,
         },
       ],
-      tools: buildTools(webhookUrl),
+      tools: [],
     },
     voice: {
       provider: '11labs',
