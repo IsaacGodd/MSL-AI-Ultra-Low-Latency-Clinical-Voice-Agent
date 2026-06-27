@@ -136,9 +136,6 @@ LIMITS:
       model: 'nova-2',
       language: 'en-US',
     },
-    endpointingConfig: {
-      timeoutSeconds: 1.2,
-    },
     silenceTimeoutSeconds: 60,
     maxDurationSeconds: 600,
     endCallMessage: 'Thank you for your time, Doctor. I will follow up with the requested information. Have a great day.',
