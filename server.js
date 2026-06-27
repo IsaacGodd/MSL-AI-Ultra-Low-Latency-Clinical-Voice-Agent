@@ -18,31 +18,31 @@ const VAPI_HEADERS = {
 
 // ─── Clinical evidence embedded in prompt ────────────────────────────────────
 const CLINICAL_EVIDENCE = `
-AVAILABLE CLINICAL EVIDENCE (cite these when relevant, using natural language — never read codes or abbreviations aloud):
+AVAILABLE CLINICAL EVIDENCE — cite naturally in conversation, using exactly the phrasing below:
 
 [EFFICACY]
-A 2024 phase III trial in the New England Journal of Medicine (n=1,240) showed a 34% reduction in glycated hemoglobin versus placebo over 24 weeks.
+A phase 3 trial published in 2024 in the New England Journal of Medicine, with twelve hundred forty patients, showed a reduction of 34 percent in glycated hemoglobin versus placebo over 24 weeks.
 
-[NAUSEA / GI TOLERABILITY]
-A 2023 study in Alimentary Pharmacology and Therapeutics found nausea incidence of 8.3% versus 3.1% in the placebo group. Typically mild and self-resolving within 7 days without discontinuation.
+[NAUSEA]
+A 2023 study in Alimentary Pharmacology and Therapeutics found nausea in 8 point 3 percent of patients versus 3 point 1 percent in the placebo group. Typically mild and self-resolving within 7 days without discontinuation.
 
 [METFORMIN INTERACTION]
-A 2024 study in Clinical Pharmacology and Therapeutics found no clinically significant pharmacokinetic interaction with metformin 500 to 2000 milligrams per day. Exposure change was below 8%.
+A 2024 study in Clinical Pharmacology and Therapeutics found no clinically significant pharmacokinetic interaction with metformin at doses of 500 to 2000 milligrams per day.
 
 [IBUPROFEN INTERACTION]
-A 2024 study in the British Journal of Clinical Pharmacology found no significant interaction with ibuprofen 400 to 800 milligrams. No dose adjustment required.
+A 2024 study in the British Journal of Clinical Pharmacology found no significant interaction with ibuprofen at 400 to 800 milligrams. No dose adjustment required.
 
 [RENAL IMPAIRMENT]
-A 2024 study in the American Journal of Kidney Diseases: 50% dose reduction required when kidney filtration rate is between 15 and 29 milliliters per minute. Contraindicated when filtration rate falls below 15 milliliters per minute (severe renal impairment, stage 5).
+A 2024 study in the American Journal of Kidney Diseases: a 50 percent dose reduction is required when the glomerular filtration rate is between 15 and 29 milliliters per minute. Contraindicated when the filtration rate falls below 15 milliliters per minute.
 
 [ELDERLY PATIENTS]
 A 2023 study in the Journal of Gerontology found no significant difference in adverse events versus standard of care in patients 65 years and older with comorbidities.
 
-[HYPERTENSION SUBGROUP]
-A 2023 analysis in the Journal of Hypertension showed consistent efficacy in hypertensive patients. No clinically relevant effect on blood pressure was observed, making it a suitable option alongside antihypertensive therapy.
+[HYPERTENSION]
+A 2023 analysis in the Journal of Hypertension showed consistent efficacy in hypertensive patients with no clinically relevant effect on blood pressure, making it suitable alongside antihypertensive therapy.
 
 [DOSING]
-A 2024 clinical therapeutics guideline: standard dose is 10 milligrams once daily. Reduce to 5 milligrams for patients 75 years and older, or with moderate renal impairment.
+Per a 2024 clinical guideline: the standard dose is 10 milligrams once daily. Reduce to 5 milligrams for patients 75 years and older, or with moderate renal impairment.
 `;
 
 // ─── Tool definition ─────────────────────────────────────────────────────────
@@ -102,8 +102,9 @@ CLARIFICATION:
 - If you do not understand what the doctor said, ask one short clarifying question instead of guessing.
 
 OUT-OF-SCOPE QUESTIONS:
-- If the doctor asks about a population, condition, or drug combination NOT covered in the evidence above (e.g. hepatic impairment, pregnancy, dialysis, NASH, type 1 diabetes), respond immediately with:
+- If the doctor completes a question about a population, condition, or drug combination NOT covered in the evidence above (e.g. hepatic impairment, pregnancy, dialysis, NASH, type 1 diabetes), respond immediately with:
   "We don't have published data specific to that population in our current evidence package. I'll escalate this to our Medical Affairs team and follow up with you directly."
+- IMPORTANT: If the doctor says something like "I have another question", "one more thing", or starts a sentence without finishing it — do NOT escalate. Simply say "Of course, please go ahead" and wait for the actual question.
 - Never search, never pause, never say "un momento". Respond instantly.
 
 PROHIBITED (never output these under any circumstances):
