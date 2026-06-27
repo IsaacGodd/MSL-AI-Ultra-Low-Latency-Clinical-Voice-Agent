@@ -1,0 +1,1 @@
+**The bottleneck in medical AI is latency and hallucinations.** This architecture solves both by leveraging **Groq's Llama 3.3 70B** for near-instantaneous processing and a **hybrid context router** that relies on strictly embedded clinical evidence for standard queries, falling back to real-time **PubMed API** tool calls for novel research.
