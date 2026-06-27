@@ -296,7 +296,7 @@ app.post('/webhook/vapi', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 async function boot() {
-  let publicUrl = process.env.SERVER_URL || null;
+  let publicUrl = (process.env.SERVER_URL || '').trim() || null;
 
   if (!publicUrl && process.env.NGROK_AUTH_TOKEN) {
     try {
